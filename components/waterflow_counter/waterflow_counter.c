@@ -7,6 +7,7 @@
 #include "driver/gpio.h"
 #include "freertos/queue.h"
 #include "esp_timer.h"
+#include "esp_log.h"
 
 #define GPIO_FLOW_PULSE		GPIO_NUM_6
 #define GPIO_INPUT_PIN_SEL	(1ULL<<GPIO_FLOW_PULSE)
@@ -18,8 +19,14 @@
 static QueueHandle_t gpio_evt_queue = NULL;
 
 static OneWheelRevolutionListener gOneWheelRevolutionListener = NULL;
+static TenMilliliterFlownListener gTenMilliliterFlownListener = NULL;
 
-void notify();
+static const char* TAG = "waterflow_counter";
+
+void notifyWheelRevolution();
+void notifyTenMilliliterFlown();
+
+uint16_t revolutions = 0;
 
 static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
@@ -32,8 +39,13 @@ static void count_waterflow_pulse(void* arg)
     uint32_t io_num;
     for(;;) {
         if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
-            printf("waterflow_counter\n");
-            notify();
+            ++revolutions;
+        	ESP_LOGI(TAG, "one waterflow pulse");
+            notifyWheelRevolution();
+            if(revolutions > (WHEEL_REVOLUTION_PER_LITER/1000 * 10)) {
+            	revolutions = 0;
+            	notifyTenMilliliterFlown();
+            }
         }
     }
 }
@@ -58,15 +70,32 @@ void init_waterflowCounter(void)
     printf("Minimum free heap size: %"PRIu32" bytes\n", esp_get_minimum_free_heap_size());
 }
 
-void registerEventListener(OneWheelRevolutionListener listener) {
+void registerRevolutionEventListener(OneWheelRevolutionListener listener) {
 	gOneWheelRevolutionListener = listener;
+	ESP_LOGI(TAG, "registered OneWheelRevolutionListener");
 }
 
-void notify() {
+void registerTenMilliliterEventListener(TenMilliliterFlownListener listener) {
+	gTenMilliliterFlownListener = listener;
+	ESP_LOGI(TAG, "registered TenMilliliterFlownListener");
+}
+
+void notifyWheelRevolution() {
 	if (gOneWheelRevolutionListener != NULL) {
 		OneWheelRevolutionEvent event;
 		event.systemtime = esp_timer_get_time();
 
 		gOneWheelRevolutionListener(event);
+		ESP_LOGI(TAG, "sent OneWheelRevolutionEvent to listener");
+	}
+}
+
+void notifyTenMilliliterFlown() {
+	if(gTenMilliliterFlownListener != NULL) {
+		TenMilliliterFlownEvent event;
+		event.systemtime = esp_timer_get_time();
+
+		gTenMilliliterFlownListener(event);
+		ESP_LOGI(TAG, "sent TenMilliliterFlownEvent to listener");
 	}
 }
