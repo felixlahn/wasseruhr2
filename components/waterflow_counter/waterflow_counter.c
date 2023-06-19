@@ -12,7 +12,7 @@
 #define GPIO_FLOW_PULSE		GPIO_NUM_6
 #define GPIO_INPUT_PIN_SEL	(1ULL<<GPIO_FLOW_PULSE)
 #define QUEUE_LENGTH		10
-#define QUEUE_ITEM_SIZE		sizeof(struct oneWheelRevolutionEvent)
+#define QUEUE_ITEM_SIZE		sizeof(uint32_t)
 
 #define ESP_INTR_FLAG_DEFAULT 0
 
@@ -26,7 +26,7 @@ static const char* TAG = "waterflow_counter";
 void notifyWheelRevolution();
 void notifyTenMilliliterFlown();
 
-uint16_t revolutions = 0;
+uint8_t revolutions = 0;
 
 static void IRAM_ATTR gpio_isr_handler(void* arg)
 {

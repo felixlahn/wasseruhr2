@@ -3,7 +3,6 @@
 #include <unistd.h>
 
 #include "esp_log.h"
-//#include "bluetooth.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -20,6 +19,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 
 #include "waterflow_counter.h"
+#include "button.h"
 
 // should be in own bluetooth.h-file
 ////////////////////////////////////////////////////////////////////////////
@@ -42,10 +42,14 @@ static const char* TAG = "main";
 
 int milliliterCounter = 0;
 
-void resetListener(ResetEvent event) {
-	ESP_LOGI(TAG, "received ResetEvent with systemtime %lld", event.systemtime);
+void resetMilliliterCounter() {
 	milliliterCounter = 0;
 	setGATTReadValue(milliliterCounter);
+}
+
+void resetListener(ResetEvent event) {
+	ESP_LOGI(TAG, "received ResetEvent with systemtime %lld", event.systemtime);
+	resetMilliliterCounter();
 }
 
 void oneWheelRevolutionEventListener(OneWheelRevolutionEvent event) {
@@ -58,13 +62,20 @@ void tenMilliliterFlownListener(TenMilliliterFlownEvent event) {
 	setGATTReadValue(milliliterCounter);
 }
 
+void buttonPressedEventListener(ButtonPressedEvent event) {
+	ESP_LOGI(TAG, "received ButtonPressedEvent with systemtime %lld", event.systemtime);
+	resetMilliliterCounter();
+}
+
 void app_main(void)
 {
 	setGATTReadValue(milliliterCounter);
 	init_bluetooth();
 	init_waterflowCounter();
+	init_button();
 	registerRevolutionEventListener(oneWheelRevolutionEventListener);
 	registerTenMilliliterEventListener(tenMilliliterFlownListener);
+	registerButtonPressedEventListener(buttonPressedEventListener);
 	registerResetListener(resetListener);
 
     while (true) {
